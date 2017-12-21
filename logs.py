@@ -1,3 +1,4 @@
+#! /usr/bin/env python
 from enum import Enum
 import psycopg2
 
@@ -9,6 +10,16 @@ class Types(Enum):
     VIEWS = "views"
     ERRORS = "errors"
 
+
+def connect():
+    try:
+        db = psycopg2.connect(database=DBNAME)
+        c = db.cursor()
+        return db, c
+    except Exception as e:
+        print(e)
+
+
 def print_tuple_array(arr, units):
     """ Function to print tuple"""
     for(article_name, views) in arr:
@@ -19,14 +30,16 @@ def print_tuple_array(arr, units):
 def popular_articles():
     """ Function to return popular articles"""
     query = '''
-        select articles.title , count(*) as views from articles join log
-        on log.path like concat ('%',articles.slug,'%') where log.status
-        like '%200%' group by articles.title order by views desc limit 3;
+        select title, count(*) as views
+       from log join articles
+       on log.path = concat('/article/', articles.slug)
+       group by title
+       order by views desc
+       limit 3;
         '''
-    db = psycopg2.connect(database=DBNAME)
-    c = db.cursor()
-    c.execute(query)
-    articles = c.fetchall()
+    db, cursor = connect()
+    cursor.execute(query)
+    articles = cursor.fetchall()
     db.close()
     return articles
 
@@ -35,16 +48,15 @@ def popular_authors():
     """ Function to return popular authors"""
     query = '''
         select authors.name, views from authors, (select articles.author
-        as author, count (*) as views from articles join log on log.path
-        like concat ('%',  articles.slug, '%')
+        as author, count (*) as views from articles join log on log.path =
+        concat ('/article/', articles.slug)
         where log.status like '%200%' group by articles.author order
         by views desc)
         as subq where authors.id = author;
     '''
-    db = psycopg2.connect(database=DBNAME)
-    c = db.cursor()
-    c.execute(query)
-    authors = c.fetchall()
+    db, cursor = connect()
+    cursor.execute(query)
+    authors = cursor.fetchall()
     db.close()
     return authors
 
@@ -52,19 +64,18 @@ def popular_authors():
 def major_errors():
     """ Function to return days where error percentage is over 1"""
     query = '''
-    select day, percentage from (
-    select day, round((sum(requests)/(select count(*) from log where
-    substring(cast(log.time as text), 0, 11) = day) * 100), 2) as
-    percentage from (select substring(cast(log.time as text), 0, 11) as day,
-    count(*) as requests from log where status like '%404%' group by day)
-    as logpercentage group by day order by percentage desc) as subq
-    where percentage >= 1
+    select to_char(date, 'FMMonth FMDD, YYYY'), ((err/total)*100) as ratio
+       from (select time::date as date,
+                    count(*) as total,
+                    sum((status != '200 OK')::int)::float as err
+                    from log
+                    group by date) as errors
+       where ((err/total)*100) > 1;
     '''
 
-    db = psycopg2.connect(database=DBNAME)
-    c = db.cursor()
-    c.execute(query)
-    errors = c.fetchall()
+    db, cursor = connect()
+    cursor.execute(query)
+    errors = cursor.fetchall()
     db.close()
     return errors
 
