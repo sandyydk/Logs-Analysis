@@ -8,11 +8,11 @@ This project/tool answers the following three questions:-
 
 ## **Setup**
 
-Install vagrant
-Install VirtualBox
-Download the vagrant config file as mentioned in Udacity Nanodegree 1.
-Download and attach the data to psql database like -
-psql -d news -f newsdata.sql
-cd to the folder where source code is and do -- python logs.py
+Install vagrant <br />
+Install VirtualBox <br />
+Download the vagrant config file as mentioned in Udacity Nanodegree 1. <br />
+Download and attach the data to psql database like - <br />
+`psql -d news -f newsdata.sql` <br />
+cd to the folder where source code is and do -- `python logs.py` <br />
 
 
